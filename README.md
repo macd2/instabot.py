@@ -33,6 +33,51 @@ Depending on your operating system and python installation, you might need to us
 - To set extra parameters and more sophisticated configurations, copy and edit `example.py` and run.
 
 
+## igtool: scheduling and reports through the official API
+
+The classic bot above drives Instagram's undocumented web endpoints and has been blocked for years. `igtool/` is a separate, supported path: it uses only the official Instagram Graph API with a token for **your own professional (business or creator) account**. It schedules and publishes your posts and builds insight reports. It does not like, follow or comment on other accounts, because the official API does not allow that.
+
+### Setup
+
+1. Create a Meta app and get a long-lived user access token with the publishing and insights permissions (`instagram_business_basic`, `instagram_business_content_publish`, `instagram_business_manage_insights` for the Instagram Login flavour, or the `instagram_basic`, `instagram_content_publish`, `instagram_manage_insights` and `pages_show_list` set for the Facebook Login flavour). Meta's "Instagram Platform" docs walk through this.
+2. `cp igtool.example.ini igtool.ini` and fill in `access_token`. Pick `api_host`: `graph.instagram.com` if your account is not linked to a Facebook Page, otherwise `graph.facebook.com`.
+3. `python3 -m igtool whoami` prints the account id; put it in `ig_user_id` (optional for `graph.instagram.com`).
+
+Only `requests` is needed (`pip3 install requests`). Python 3.9 or newer.
+
+### Scheduling
+
+Media must be reachable on a public URL at publish time (the API downloads it; it does not accept uploads). JPEG for images, MP4/MOV for reels.
+
+```
+python3 -m igtool schedule add --at "2026-10-14 09:00" --tz Europe/Berlin --kind image --media https://cdn.example.com/a.jpg --caption "Morning"
+python3 -m igtool schedule add --at "2026-10-15 18:00" --kind reel --media https://cdn.example.com/clip.mp4 --caption "Clip" --option share_to_feed=true
+python3 -m igtool schedule add --at "2026-10-16 12:00" --kind carousel --media https://cdn.example.com/1.jpg --media https://cdn.example.com/2.jpg
+python3 -m igtool schedule list
+python3 -m igtool schedule cancel 3
+python3 -m igtool schedule run            # keep running; publishes posts as they come due
+python3 -m igtool schedule run-once       # publish what is due now, then exit (cron friendly)
+python3 -m igtool publish --kind story --media https://cdn.example.com/s.jpg   # publish immediately
+python3 -m igtool limit                   # how much of the rolling 24h publishing quota is used
+```
+
+Failed posts are retried on the next tick, up to three attempts, and the error is kept in the queue (`schedule list`).
+
+### Reports
+
+```
+python3 -m igtool report --days 28             # account totals, daily reach/followers, per-post insights
+python3 -m igtool report --since 2026-09-01 --until 2026-09-30 --media-limit 50 --print
+```
+
+Writes `reports/report_<since>_<until>.md`, `.json`, `_daily.csv` and `_media.csv`. Metrics the API refuses for your account or version are listed in the report's Notes section instead of failing the run. Metric names are configurable in `igtool.ini` because Meta renames them (impressions became views in 2025).
+
+### Tests
+
+```
+python3 -m unittest discover -s tests
+```
+
 ## Parameters
 | Parameter            | Type|                Description                           |        Default value             |
 |:--------------------:|:---:|:----------------------------------------------------:|:--------------------------------:|
